@@ -7,7 +7,8 @@ let courseRouter = express.Router()
 
 courseRouter.post("/create",isAuth,createCourse)
 courseRouter.get("/getpublishedcourses",getPublishedCourses)
-courseRouter.get("/getcreatorcourses",getCreatorCourses)
+// Require auth so req.userId is available to filter creator's courses
+courseRouter.get("/getcreatorcourses",isAuth,getCreatorCourses)
 courseRouter.post("/editcourse/:courseId",isAuth,upload.single("thumbnail"),editCourse)
 courseRouter.get("/getcourse/:courseId",isAuth,getCourseById)
 courseRouter.delete("/removecourse/:courseId",isAuth,removeCourse)

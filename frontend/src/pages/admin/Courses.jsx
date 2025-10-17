@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { FaEdit } from "react-icons/fa";
 
@@ -16,25 +16,27 @@ function Courses() {
   let dispatch = useDispatch()
 
   const { creatorCourseData } = useSelector(state => state.course)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const getCreatorData = async () => {
+      setLoading(true)
+      setError(null)
       try {
         const result = await axios.get(serverUrl + "/api/course/getcreatorcourses", { withCredentials: true })
-
-        await dispatch(setCreatorCourseData(result.data))
-
-
+        dispatch(setCreatorCourseData(result.data))
         console.log(result.data)
-
-      } catch (error) {
-        console.log(error)
-        toast.error(error.response.data.message)
+      } catch (err) {
+        console.log(err)
+        setError(err?.response?.data?.message || 'Failed to fetch courses')
+        toast.error(err?.response?.data?.message || 'Failed to fetch courses')
+      } finally {
+        setLoading(false)
       }
-
     }
     getCreatorData()
-  }, [])
+  }, [dispatch])
 
 
 
@@ -56,6 +58,15 @@ function Courses() {
         {/* For larger screens (table layout) */}
 
         <div className="hidden md:block bg-white rounded-xl shadow p-4 overflow-x-auto">
+          {loading && (
+            <p className="text-center text-sm text-gray-500">Loading courses...</p>
+          )}
+          {!loading && error && (
+            <p className="text-center text-sm text-red-500">{error}</p>
+          )}
+          {!loading && !error && (!creatorCourseData || creatorCourseData.length === 0) && (
+            <p className="text-center text-sm text-gray-500">No courses yet. Click "Create Course" to get started.</p>
+          )}
           <table className="min-w-full text-sm">
             <thead className="border-b bg-gray-50">
               <tr>
@@ -101,6 +112,15 @@ function Courses() {
 
 
         <div className="md:hidden space-y-4">
+          {loading && (
+            <p className="text-center text-sm text-gray-500">Loading courses...</p>
+          )}
+          {!loading && error && (
+            <p className="text-center text-sm text-red-500">{error}</p>
+          )}
+          {!loading && !error && (!creatorCourseData || creatorCourseData.length === 0) && (
+            <p className="text-center text-sm text-gray-500">No courses yet. Click "Create Course" to get started.</p>
+          )}
           {creatorCourseData?.map((course, index) => (
             <div key={index}
 
