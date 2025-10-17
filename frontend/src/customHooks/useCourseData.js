@@ -11,11 +11,9 @@ const useCourseData = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const endpoint = userData?.role === 'educator'
-          ? '/api/course/getcreatorcourses'
-          : '/api/course/getpublishedcourses';
-
-        const result = await axios.get(serverUrl + endpoint, { withCredentials: true });
+        // Always load published courses into the global explore list.
+        // Creator-specific courses are fetched separately via useCreatorCourseData.
+        const result = await axios.get(serverUrl + '/api/course/getpublishedcourses', { withCredentials: true });
         dispatch(setCourseData(result.data));
       } catch (error) {
         console.log(error);

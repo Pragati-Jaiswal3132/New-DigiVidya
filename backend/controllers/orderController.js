@@ -10,23 +10,58 @@ const razorpayInstance = new razorpay({
 
 export const createOrder = async (req, res) => {
   try {
-    const { courseId } = req.body;
+    const { courseId, userId } = req.body;
 
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ message: "Course not found" });
 
+    const priceNumber = Number(course.price);
+    const amount = Math.round((isNaN(priceNumber) ? 0 : priceNumber) * 100);
+
+    // If course is free or price is not set, enroll without creating a payment order
+    if (!amount || amount <= 0) {
+      if (!userId) {
+        return res.status(400).json({ message: "userId required for free enrollment" });
+      }
+
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      // Idempotent enrollment updates
+      if (!user.enrolledCourses.map(String).includes(String(courseId))) {
+        user.enrolledCourses.push(courseId);
+        await user.save();
+      }
+
+      if (!course.enrolledStudents.map(String).includes(String(userId))) {
+        course.enrolledStudents.push(userId);
+        await course.save();
+      }
+
+      return res.status(200).json({
+        free: true,
+        message: "Course is free. Enrollment successful.",
+        courseId,
+        userId,
+      });
+    }
+
+    // Paid flow — ensure Razorpay keys exist
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_SECRET) {
+      return res.status(500).json({ message: "Payment gateway not configured" });
+    }
+
     const options = {
-      amount: course.price * 100, // in paisa
+      amount, // in paisa
       currency: 'INR',
-      receipt: `${courseId}.toString()`,
+      receipt: String(courseId),
     };
 
     const order = await razorpayInstance.orders.create(options);
     return res.status(200).json(order);
   } catch (err) {
-    console.log(err)
+    console.log(err);
     return res.status(500).json({ message: `Order creation failed ${err}` });
-
   }
 };
 
@@ -34,19 +69,20 @@ export const createOrder = async (req, res) => {
 
 export const verifyPayment = async (req, res) => {
   try {
-    
         const {razorpay_order_id , courseId , userId} = req.body
         const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id)
         if(orderInfo.status === 'paid') {
       // Update user and course enrollment
       const user = await User.findById(userId);
-      if (!user.enrolledCourses.includes(courseId)) {
+      if (!user) return res.status(404).json({ message: "User not found" });
+      if (!user.enrolledCourses.map(String).includes(String(courseId))) {
         user.enrolledCourses.push(courseId);
         await user.save();
       }
 
       const course = await Course.findById(courseId).populate("lectures");
-      if (!course.enrolledStudents.includes(userId)) {
+      if (!course) return res.status(404).json({ message: "Course not found" });
+      if (!course.enrolledStudents.map(String).includes(String(userId))) {
         course.enrolledStudents.push(userId);
         await course.save();
       }

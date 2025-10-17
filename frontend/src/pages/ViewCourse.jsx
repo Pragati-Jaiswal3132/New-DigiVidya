@@ -131,41 +131,46 @@ console.log("Average Rating:", avgRating);
  
 const handleEnroll = async (courseId, userId) => {
   try {
-    // 1. Create Order
-    const orderData = await axios.post(serverUrl + "/api/payment/create-order", {
-      courseId,
-      userId
-    } , {withCredentials:true});
-    console.log(orderData)
+    // 1. Create Order or free enrollment
+    const orderRes = await axios.post(
+      serverUrl + "/api/payment/create-order",
+      { courseId, userId },
+      { withCredentials: true }
+    );
+
+    // Handle free course enrollment
+    if (orderRes?.data?.free) {
+      setIsEnrolled(true);
+      toast.success(orderRes?.data?.message || "Enrolled successfully.");
+      return;
+    }
 
     const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID, // from .env
-      amount: orderData.data.amount,
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+      amount: orderRes.data.amount,
       currency: "INR",
       name: "Virtual Courses",
       description: "Course Enrollment Payment",
-      order_id: orderData.data.id,
+      order_id: orderRes.data.id,
       handler: async function (response) {
-  console.log("Razorpay Response:", response);
-  try {
-    const verifyRes = await axios.post(serverUrl + "/api/payment/verify-payment",{
-  ...response,       
-  courseId,
-  userId
-}, { withCredentials: true });
-    
-setIsEnrolled(true)
-    toast.success(verifyRes.data.message);
-  } catch (verifyError) {
-    toast.error("Payment verification failed.");
-    console.error("Verification Error:", verifyError);
-  }
-  },
-    };
-    
-    const rzp = new window.Razorpay(options)
-    rzp.open()
+        try {
+          const verifyRes = await axios.post(
+            serverUrl + "/api/payment/verify-payment",
+            { ...response, courseId, userId },
+            { withCredentials: true }
+          );
 
+          setIsEnrolled(true);
+          toast.success(verifyRes.data.message);
+        } catch (verifyError) {
+          toast.error("Payment verification failed.");
+          console.error("Verification Error:", verifyError);
+        }
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
   } catch (err) {
     toast.error("Something went wrong while enrolling.");
     console.error("Enroll Error:", err);
