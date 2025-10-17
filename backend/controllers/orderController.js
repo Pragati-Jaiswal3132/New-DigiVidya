@@ -46,8 +46,33 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Paid flow — ensure Razorpay keys exist
+    // Paid flow — ensure Razorpay keys exist or use mock in dev if enabled
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_SECRET) {
+      if (process.env.MOCK_PAYMENTS === 'true') {
+        // Enroll directly in mock mode (non-production testing)
+        if (!userId) {
+          return res.status(400).json({ message: "userId required for enrollment" });
+        }
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        if (!user.enrolledCourses.map(String).includes(String(courseId))) {
+          user.enrolledCourses.push(courseId);
+          await user.save();
+        }
+
+        if (!course.enrolledStudents.map(String).includes(String(userId))) {
+          course.enrolledStudents.push(userId);
+          await course.save();
+        }
+
+        return res.status(200).json({
+          free: true,
+          message: "Payment gateway not configured. Enrolled in mock mode.",
+          courseId,
+          userId,
+        });
+      }
       return res.status(500).json({ message: "Payment gateway not configured" });
     }
 
