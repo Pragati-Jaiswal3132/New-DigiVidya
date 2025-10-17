@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { serverUrl } from '../App.jsx';
+import { serverUrl } from '../App';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCourseData } from '../redux/courseSlice.js';
 import { useEffect } from 'react';
@@ -9,19 +9,22 @@ const GetCourseData = () => {
   const dispatch = useDispatch()
   const userData = useSelector((state) => state.user?.userData);
 
-  useEffect(()=>{
-    const getAllPublishedCourse = async () => {
+  useEffect(() => {
+    const fetchCourses = async () => {
       try {
-        const result = await axios.get(serverUrl + "/api/course/getpublishedcourses" , {withCredentials:true})
-        console.log(result.data)
-        dispatch(setCourseData(result.data))
-        
+        const endpoint = userData?.role === "educator"
+          ? "/api/course/getcreatorcourses"
+          : "/api/course/getpublishedcourses";
+
+        const result = await axios.get(serverUrl + endpoint, { withCredentials: true });
+        console.log(result.data);
+        dispatch(setCourseData(result.data));
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
-    }
-    getAllPublishedCourse()
-  },[])
+    };
+    fetchCourses();
+  }, [userData, dispatch])
 
 }
 
